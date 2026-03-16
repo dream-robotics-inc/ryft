@@ -33,6 +33,7 @@ build:posix --copt=-Wno-error=c23-extensions
 build:linux --config=posix
 build:linux --incompatible_enable_cc_toolchain_resolution
 build:linux --repo_env BAZEL_DO_NOT_DETECT_CPP_TOOLCHAIN=1
+build:linux --action_env=NIX_LD_LIBRARY_PATH
 build:linux --copt=-Wno-unknown-warning-option
 build:linux --copt=-Wno-stringop-truncation
 build:linux --copt=-Wno-array-parameter
