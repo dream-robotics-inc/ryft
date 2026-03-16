@@ -691,11 +691,15 @@ impl BuildConfiguration {
             }
         }
 
+        let os_config = match (&self.operating_system, &self.architecture) {
+            (OperatingSystem::Linux, Architecture::AArch64) => "linux_arm64".to_string(),
+            _ => self.operating_system.to_string(),
+        };
         let bazel_config = match &self.device {
-            Device::Cpu => format!("--config={}_{}", self.operating_system, self.architecture),
-            Device::Cuda12 => format!("--config={}_{} --config=cuda-12", self.operating_system, self.architecture),
-            Device::Cuda13 => format!("--config={}_{} --config=cuda-13", self.operating_system, self.architecture),
-            Device::Rocm7 => format!("--config={}_{} --config=rocm-7", self.operating_system, self.architecture),
+            Device::Cpu => format!("--config={}", os_config),
+            Device::Cuda12 => format!("--config={} --config=cuda-12", os_config),
+            Device::Cuda13 => format!("--config={} --config=cuda-13", os_config),
+            Device::Rocm7 => format!("--config={} --config=rocm-7", os_config),
             Device::Tpu | Device::Neuron | Device::Metal => {
                 bail!("the PJRT {} plugin is closed source and does not support Bazel compilation", self.device)
             }
