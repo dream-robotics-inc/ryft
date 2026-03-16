@@ -29,18 +29,24 @@ build:posix --copt=-Qunused-arguments
 build:posix --copt=-Werror=mismatched-tags
 build:posix --copt=-Wno-error=c23-extensions
 
-# Linux Configuration
+# Linux Configuration (shared)
 build:linux --config=posix
 build:linux --incompatible_enable_cc_toolchain_resolution
 build:linux --repo_env BAZEL_DO_NOT_DETECT_CPP_TOOLCHAIN=1
-build:linux --copt=-mavx
-build:linux --host_copt=-mavx
 build:linux --copt=-Wno-unknown-warning-option
 build:linux --copt=-Wno-stringop-truncation
 build:linux --copt=-Wno-array-parameter
 build:linux --copt=-Wno-deprecated-register
 build:linux --copt=-Wno-register
 build:linux --define=tensorflow_mkldnn_contraction_kernel=1
+
+# Linux x86_64
+build:linux_amd64 --config=linux
+build:linux_amd64 --copt=-mavx
+build:linux_amd64 --host_copt=-mavx
+
+# Linux aarch64
+build:linux_arm64 --config=linux
 
 # MacOS Configuration
 build:macos --config=posix
@@ -53,6 +59,9 @@ build:macos --host_crosstool_top=@local_config_apple_cc//:toolchain
 build:macos --linkopt=-Wl,-undefined,dynamic_lookup
 build:macos --host_linkopt=-Wl,-undefined,dynamic_lookup
 build:macos --define=no_nccl_support=true
+
+build:macos_arm64 --config=macos
+build:macos_amd64 --config=macos
 
 # Windows Configuration
 build:windows --compiler=clang-cl
@@ -84,6 +93,8 @@ build:windows --linkopt=/OPT:ICF
 build:windows --host_linkopt=/OPT:ICF
 build:windows --host_linkopt=/FORCE:MULTIPLE --linkopt=/FORCE:MULTIPLE
 build:windows --features=-symbol_check
+
+build:windows_amd64 --config=windows
 
 # CUDA Configuration
 build:cuda --@xla//xla/stream_executor/cuda:enable_libnvjitlink_support=True
