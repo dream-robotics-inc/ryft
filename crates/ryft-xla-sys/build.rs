@@ -677,6 +677,9 @@ impl BuildConfiguration {
             PathBuf::from("pjrt_plugin_exported_symbols.txt"),
             PathBuf::from("pjrt_plugin_version_script.lds"),
             PathBuf::from("WORKSPACE"),
+            PathBuf::from("src").join("c++").join("common.h"),
+            PathBuf::from("src").join("c++").join("distributed.cc"),
+            PathBuf::from("src").join("c++").join("distributed.h"),
         ];
 
         for file_name in bazel_files {
