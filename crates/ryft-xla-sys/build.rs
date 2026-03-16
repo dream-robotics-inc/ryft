@@ -283,7 +283,7 @@ impl BuildConfiguration {
         println!("cargo::rustc-link-lib=static=ryft-xla-sys");
         match &self.operating_system {
             OperatingSystem::Linux => {
-                println!("cargo::rustc-link-lib=stdc++");
+                println!("cargo::rustc-link-lib=static=stdc++");
                 println!("cargo::rustc-link-arg=-g");
                 println!("cargo::rustc-link-search=native={}", library_directory.display());
                 println!("cargo::rustc-link-arg=-Wl,-rpath,{}", library_directory.display());
