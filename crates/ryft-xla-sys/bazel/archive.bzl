@@ -204,7 +204,9 @@ def _build_archive_impl(ctx):
         outputs = [output],
         command = """
             set -e
-            archive_dir=$(mktemp -d)
+            archive_dir="/tmp/ryft-archive-$$"
+            rm -rf "$archive_dir"
+            mkdir -p "$archive_dir"
             chmod 755 "$archive_dir"
 
             {copy_commands}
