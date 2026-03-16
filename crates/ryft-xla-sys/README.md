@@ -140,12 +140,41 @@ Currently, precompiled binaries are only available for the following target plat
 
 - **`ryft-xla-sys` Static Library:**
     - Linux `x86_64`
+    - Linux `aarch64` (builds from source via Bazel; see below)
     - MacOS `aarch64`
     - Windows `x86_64`
 - **PJRT Plugins for CUDA 12 & 13, ROCm 7, TPUs, and AWS Neuron:**
     - Linux `x86_64`
 - **PJRT Plugin for Metal (JAX Metal):**
     - MacOS `aarch64`
+
+### Linux ARM64 (AArch64) and NixOS Compatibility
+
+There are no precompiled `ryft-xla-sys` artifacts for Linux ARM64. The crate builds XLA from source via
+Bazel automatically when no precompiled archive is found. The following changes were made to support this
+build path, particularly for NixOS hosts and `cargo-zigbuild` cross-compilation:
+
+- **Bazel config (`linux_arm64`):** The default `build:linux` Bazel config includes `-mavx` (x86-only).
+  A separate `build:linux_arm64` config omits this flag and is selected automatically when the target
+  architecture is AArch64.
+
+- **NixOS Bazel compatibility:** Bazel's `run_shell` actions use `exec env -` internally, which strips
+  PATH on NixOS (where coreutils aren't at standard `/usr/bin` paths). The `archive.bzl` rule uses
+  `use_default_shell_env = True` so that Bazel inherits the host PATH.
+
+- **`c_char` portability:** On ARM64 Linux, `c_char` is `unsigned char` (`u8`), not `signed char` (`i8`)
+  as on x86_64. The `ryft-pjrt` crate uses `std::ffi::c_char` instead of `i8` for portable pointer casts.
+
+- **libstdc++ static linking for cross-compilation:** XLA is compiled against GNU `libstdc++` by Bazel's
+  hermetic GCC toolchain. When linking with `cargo-zigbuild`, zig's linker provides `libc++` but not GNU
+  `libstdc++`, causing unresolved symbol errors. To fix this:
+  1. After extracting the built archive, `build.rs` copies `libstdc++.a` from Bazel's hermetic sysroot
+     (GCC 8, glibc 2.27) into the archive's `lib/` directory.
+  2. The crate emits `cargo::rustc-link-lib=static=stdc++` (not dynamic) to force the linker to use
+     the static library from the native search path rather than zig's bundled `libc++`.
+
+  Note: using the host system's `libstdc++.a` (e.g., GCC 14 on NixOS 25.11) does not work because it
+  requires glibc 2.40+ symbols that are too new for typical cross-compilation targets.
 
 ## Contribution
 
