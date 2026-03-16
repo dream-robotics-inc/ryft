@@ -202,11 +202,10 @@ def _build_archive_impl(ctx):
     ctx.actions.run_shell(
         inputs = [file[0] for file in archive_files],
         outputs = [output],
+        use_default_shell_env = True,
         command = """
             set -e
-            archive_dir="/tmp/ryft-archive-$$"
-            rm -rf "$archive_dir"
-            mkdir -p "$archive_dir"
+            archive_dir=$(mktemp -d)
             chmod 755 "$archive_dir"
 
             {copy_commands}
