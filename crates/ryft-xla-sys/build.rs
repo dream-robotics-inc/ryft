@@ -838,7 +838,7 @@ impl BuildConfiguration {
                 "https://files.pythonhosted.org/packages/09/dc/6d8fbfc29d902251cf333414cf7dcfaf4b252a9920c881354584ed36270d"
             }
             _ => {
-                "https://github.com/eaplatanios/ryft/releases/download/ryft-xla-sys-88dfac847f3087ac1c08463f52c60ec2f19b27c7"
+                "https://github.com/dream-robotics-inc/ryft/releases/download/ryft-xla-sys-88dfac847f3087ac1c08463f52c60ec2f19b27c7"
             }
         }
     }

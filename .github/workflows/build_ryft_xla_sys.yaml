@@ -33,6 +33,10 @@ jobs:
             architecture: amd64
             device: rocm-7
             runner: runs-on=${{ github.run_id }}/runner=64cpu-linux-x64/image=ubuntu24-gpu-x64/volume=120g/spot=true/extras=s3-cache
+          - os: linux
+            architecture: arm64
+            device: cpu
+            runner: ubuntu-24.04-arm
           - os: macos
             architecture: arm64
             device: cpu
@@ -110,7 +114,11 @@ jobs:
         shell: bash
         run: |
           OUTPUT=ryft-xla-sys-${{ matrix.config.os }}-${{ matrix.config.architecture }}-${{ matrix.config.device }}.tar.gz
-          bazel build --config=${{ matrix.config.os }} //:ryft-xla-sys-archive
+          BAZEL_CONFIG="${{ matrix.config.os }}"
+          if [[ "${{ matrix.config.os }}" == "linux" && "${{ matrix.config.architecture }}" == "arm64" ]]; then
+            BAZEL_CONFIG="linux_arm64"
+          fi
+          bazel build --config="$BAZEL_CONFIG" //:ryft-xla-sys-archive
           cp bazel-bin/ryft-xla-sys-archive.tar.gz $OUTPUT
           echo "library=$OUTPUT" >> $GITHUB_OUTPUT
       - name: Upload `ryft-xla-sys` Library
