@@ -30,6 +30,10 @@ jobs:
             device: cuda-13
             runner: runs-on=${{ github.run_id }}/runner=64cpu-linux-x64/image=ubuntu24-gpu-x64/volume=120g/spot=true/extras=s3-cache
           - os: linux
+            architecture: arm64
+            device: cuda-13
+            runner: runs-on=${{ github.run_id }}/runner=64cpu-linux-arm64/image=ubuntu24-gpu-arm64/volume=120g/spot=true/extras=s3-cache
+          - os: linux
             architecture: amd64
             device: rocm-7
             runner: runs-on=${{ github.run_id }}/runner=64cpu-linux-x64/image=ubuntu24-gpu-x64/volume=120g/spot=true/extras=s3-cache
@@ -84,7 +88,11 @@ jobs:
       - name: Install CUDA 13
         if: ${{ matrix.config.device == 'cuda-13' }}
         run: |
-          wget "https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2404/x86_64/cuda-keyring_1.1-1_all.deb"
+          CUDA_REPO_ARCH="x86_64"
+          if [[ "${{ matrix.config.architecture }}" == "arm64" ]]; then
+            CUDA_REPO_ARCH="sbsa"
+          fi
+          wget "https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2404/${CUDA_REPO_ARCH}/cuda-keyring_1.1-1_all.deb"
           sudo dpkg -i cuda-keyring_1.1-1_all.deb && rm cuda-keyring_1.1-1_all.deb
           sudo apt-get update -qq
           sudo apt install -y --no-install-recommends cuda-13-0 cuda-toolkit-13-0 cuda-nvcc-13-0 cuda-nvrtc-dev-13-0
@@ -133,10 +141,14 @@ jobs:
         id: build_pjrt_plugin
         shell: bash
         run: |
+          BAZEL_CONFIG="${{ matrix.config.os }}"
+          if [[ "${{ matrix.config.os }}" == "linux" && "${{ matrix.config.architecture }}" == "arm64" ]]; then
+            BAZEL_CONFIG="linux_arm64"
+          fi
           LIB_PREFIX="${{ matrix.config.os != 'windows' && 'lib' || '' }}"
           LIB_SUFFIX="${{ matrix.config.os == 'linux' && '.so' || '' }}${{ matrix.config.os == 'macos' && '.dylib' || '' }}${{ matrix.config.os == 'windows' && '.dll' || '' }}"
           OUTPUT="${LIB_PREFIX}pjrt-plugin-${{ matrix.config.device }}${LIB_SUFFIX}"
-          bazel build --config=${{ matrix.config.os }} ${{ matrix.config.device == 'cuda-12' && '--config=cuda-12' || '' }} ${{ matrix.config.device == 'cuda-13' && '--config=cuda-13' || '' }} ${{ matrix.config.device == 'rocm-7' && '--config=rocm-7' || '' }} //:pjrt-gpu-plugin
+          bazel build --config="$BAZEL_CONFIG" ${{ matrix.config.device == 'cuda-12' && '--config=cuda-12' || '' }} ${{ matrix.config.device == 'cuda-13' && '--config=cuda-13' || '' }} ${{ matrix.config.device == 'rocm-7' && '--config=rocm-7' || '' }} //:pjrt-gpu-plugin
           cp bazel-bin/libpjrt-gpu-plugin.so $OUTPUT
           echo "library=$OUTPUT" >> $GITHUB_OUTPUT
       - name: Create PJRT Plugin Archive
