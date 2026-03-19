@@ -13,6 +13,8 @@ jobs:
   build:
     name: Build [${{ matrix.config.os }}-${{ matrix.config.architecture }}-${{ matrix.config.device }}]
     runs-on: ${{ matrix.config.runner }}
+    env:
+      RUST_BACKTRACE: "1"
     strategy:
       fail-fast: false
       matrix:
@@ -20,7 +22,7 @@ jobs:
           - os: linux
             architecture: amd64
             device: cpu
-            runner: runs-on=${{ github.run_id }}/runner=64cpu-linux-x64/image=ubuntu24-full-x64/volume=120g/spot=true/extras=s3-cache
+            runner: ubuntu-24.04
           - os: linux
             architecture: amd64
             device: cuda-12
