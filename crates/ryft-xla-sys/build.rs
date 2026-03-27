@@ -829,13 +829,17 @@ impl BuildConfiguration {
     /// Returns the URL prefix to use for downloading the pre-compiled archive that corresponds to the provided
     /// [`Artifact`] and this [`BuildConfiguration`].
     fn precompiled_artifact_url_prefix(&self, artifact: Artifact) -> &'static str {
-        match (artifact, self.device) {
-            (Artifact::PjrtPlugin, Device::Tpu) => {
+        match (artifact, self.operating_system, self.architecture, self.device) {
+            (Artifact::PjrtPlugin, _, _, Device::Tpu) => {
                 "https://files.pythonhosted.org/packages/17/b9/76527052aa583529fe0b816e6bbe9010676a87e8c50da3a9751d5f404c66"
             }
-            (Artifact::PjrtPlugin, Device::Neuron) => "https://pip.repos.neuron.amazonaws.com/libneuronxla",
-            (Artifact::PjrtPlugin, Device::Metal) => {
+            (Artifact::PjrtPlugin, _, _, Device::Neuron) => "https://pip.repos.neuron.amazonaws.com/libneuronxla",
+            (Artifact::PjrtPlugin, _, _, Device::Metal) => {
                 "https://files.pythonhosted.org/packages/09/dc/6d8fbfc29d902251cf333414cf7dcfaf4b252a9920c881354584ed36270d"
+            }
+            (Artifact::RyftXlaSys, OperatingSystem::Linux, Architecture::AArch64, Device::Cpu)
+            | (Artifact::RyftXlaSys, OperatingSystem::MacOS, Architecture::AArch64, Device::Cpu) => {
+                "https://github.com/dream-robotics-inc/ryft/releases/download/v1.0"
             }
             _ => {
                 "https://github.com/dream-robotics-inc/ryft/releases/download/ryft-xla-sys-88dfac847f3087ac1c08463f52c60ec2f19b27c7"
@@ -850,8 +854,11 @@ impl BuildConfiguration {
             (Artifact::RyftXlaSys, OperatingSystem::Linux, Architecture::X86_64, Device::Cpu) => {
                 Some("1dcc53eac1f42772f49564eeff978147e73289286286c0515951167fd30f9a1f")
             }
+            (Artifact::RyftXlaSys, OperatingSystem::Linux, Architecture::AArch64, Device::Cpu) => {
+                Some("4d85f131c8abaa16acdaad4a389c93e8c5d1803d37de05518dd9c92d8c019dc4")
+            }
             (Artifact::RyftXlaSys, OperatingSystem::MacOS, Architecture::AArch64, Device::Cpu) => {
-                Some("56b26843772232a46996bfdc6180ae86b92409565202af2e9a153a7fd547a336")
+                Some("1fb0dbff27bfc102225e607e23544f090866a7764e08768bf5ac58506c59792f")
             }
             (Artifact::RyftXlaSys, OperatingSystem::Windows, Architecture::X86_64, Device::Cpu) => {
                 Some("7382b269db0621df17b3d373004e1c06646b45dfd8c9b11c32c33f3cb104442c")

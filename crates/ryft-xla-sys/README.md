@@ -140,7 +140,7 @@ Currently, precompiled binaries are only available for the following target plat
 
 - **`ryft-xla-sys` Static Library:**
     - Linux `x86_64`
-    - Linux `aarch64` (builds from source via Bazel; see below)
+    - Linux `aarch64`
     - MacOS `aarch64`
     - Windows `x86_64`
 - **PJRT Plugins for CUDA 12 & 13, ROCm 7, TPUs, and AWS Neuron:**
@@ -150,8 +150,8 @@ Currently, precompiled binaries are only available for the following target plat
 
 ### Linux ARM64 (AArch64) and NixOS Compatibility
 
-There are no precompiled `ryft-xla-sys` artifacts for Linux ARM64. The crate builds XLA from source via
-Bazel automatically when no precompiled archive is found. The following changes were made to support this
+Precompiled `ryft-xla-sys` artifacts are available for Linux ARM64. If no suitable precompiled archive is found,
+the crate falls back to building XLA from source via Bazel. The following changes were made to support this
 build path, particularly for NixOS hosts and `cargo-zigbuild` cross-compilation:
 
 - **Bazel config (`linux_arm64`):** The default `build:linux` Bazel config includes `-mavx` (x86-only).
