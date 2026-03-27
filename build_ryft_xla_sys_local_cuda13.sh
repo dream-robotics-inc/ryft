@@ -8,6 +8,8 @@ readonly LOCAL_BIN_DIR="$REPO_ROOT/.tools/bin"
 readonly LOCAL_CACHE_DIR="$REPO_ROOT/.cache"
 readonly BAZELISK_VERSION="1.26.0"
 readonly CUDA_KEYRING_URL="https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2404/sbsa/cuda-keyring_1.1-1_all.deb"
+readonly CUDA_SBSA_SOURCE_LIST="/etc/apt/sources.list.d/cuda-ubuntu2404-sbsa.list"
+readonly JETSON_CUDA_PIN_PATH="/etc/apt/preferences.d/ryft-cuda13-jetson.pref"
 readonly PLUGIN_OUTPUT_NAME="pjrt-plugin-linux-arm64-cuda-13.tar.gz"
 readonly PLUGIN_LIBRARY_NAME="libpjrt-plugin-cuda-13.so"
 readonly SYS_OUTPUT_NAME="ryft-xla-sys-linux-arm64-cpu.tar.gz"
@@ -138,6 +140,35 @@ ensure_base_packages() {
     zip
 }
 
+is_jetson_l4t_host() {
+  dpkg -s nvidia-l4t-core >/dev/null 2>&1
+}
+
+install_jetson_cuda_preferences() {
+  local temp_preferences
+  temp_preferences="$(mktemp)"
+
+  cat >"$temp_preferences" <<'EOF'
+Package: cuda-* libcublas-* libcufft-* libcufile-* libcusolver-* libcusparse-* libnpp-* libnvfatbin-* libnvjitlink-* libnvjpeg-* libnvptxcompiler-* libnvvm-* libnvidia-* nsight-* gds-tools-*
+Pin: origin repo.download.nvidia.com
+Pin-Priority: 1001
+
+Package: cuda-* libcublas-* libcufft-* libcufile-* libcusolver-* libcusparse-* libnpp-* libnvfatbin-* libnvjitlink-* libnvjpeg-* libnvptxcompiler-* libnvvm-* libnvidia-* nsight-* gds-tools-*
+Pin: release o=NVIDIA CUDA
+Pin-Priority: -1
+EOF
+
+  run_with_sudo install -D -m 0644 "$temp_preferences" "$JETSON_CUDA_PIN_PATH"
+  rm -f "$temp_preferences"
+}
+
+disable_generic_cuda_repo_on_jetson() {
+  if [[ -f "$CUDA_SBSA_SOURCE_LIST" ]]; then
+    log "disabling generic CUDA sbsa apt source on Jetson/L4T host"
+    run_with_sudo rm -f "$CUDA_SBSA_SOURCE_LIST"
+  fi
+}
+
 ensure_cuda_13() {
   if [[ "$SKIP_CUDA_INSTALL" -eq 1 ]]; then
     return
@@ -160,21 +191,39 @@ ensure_cuda_13() {
   if [[ "$needs_cuda" -eq 0 ]]; then
     log "CUDA 13 packages already installed"
   else
-    local temp_dir
-    temp_dir="$(mktemp -d)"
-    trap 'rm -rf "$temp_dir"' RETURN
+    if is_jetson_l4t_host; then
+      log "detected Jetson/L4T host; preferring dedicated Jetson CUDA 13 packages"
+      disable_generic_cuda_repo_on_jetson
+      install_jetson_cuda_preferences
+    else
+      local temp_dir
+      temp_dir="$(mktemp -d)"
+      trap 'rm -rf "$temp_dir"' RETURN
 
-    log "installing CUDA 13 packages for Ubuntu 24.04 ARM64"
-    download_to "$CUDA_KEYRING_URL" "$temp_dir/cuda-keyring_1.1-1_all.deb"
-    run_with_sudo dpkg -i "$temp_dir/cuda-keyring_1.1-1_all.deb"
+      log "installing CUDA 13 packages for Ubuntu 24.04 ARM64"
+      download_to "$CUDA_KEYRING_URL" "$temp_dir/cuda-keyring_1.1-1_all.deb"
+      run_with_sudo dpkg -i "$temp_dir/cuda-keyring_1.1-1_all.deb"
+    fi
+
     run_with_sudo apt-get update -qq
-    run_with_sudo apt-get install -y --no-install-recommends \
-      cuda-13-0 \
-      cuda-toolkit-13-0 \
-      cuda-nvcc-13-0 \
-      cuda-nvrtc-dev-13-0
-    trap - RETURN
-    rm -rf "$temp_dir"
+    if is_jetson_l4t_host; then
+      run_with_sudo apt-get install -y --allow-downgrades --no-install-recommends \
+        cuda-13-0 \
+        cuda-toolkit-13-0 \
+        cuda-nvcc-13-0 \
+        cuda-nvrtc-dev-13-0
+    else
+      run_with_sudo apt-get install -y --no-install-recommends \
+        cuda-13-0 \
+        cuda-toolkit-13-0 \
+        cuda-nvcc-13-0 \
+        cuda-nvrtc-dev-13-0
+    fi
+
+    if [[ -n "${temp_dir:-}" ]]; then
+      trap - RETURN
+      rm -rf "$temp_dir"
+    fi
   fi
 
   if [[ -d /usr/local/cuda-13.0/bin ]]; then
