@@ -495,6 +495,15 @@ impl BuildConfiguration {
         let artifact_path = match self.artifact_path_from_environment(artifact) {
             Ok(artifact_path) => artifact_path,
             Err(error) => {
+                if matches!(artifact, Artifact::RyftXlaSys) {
+                    bail!(
+                        "failed to locate the `{}` artifact: {error}. \
+                        Building `ryft-xla-sys` from source is disabled; provide a prebuilt archive via `{}`.",
+                        artifact.name(),
+                        RYFT_XLA_SYS_ARCHIVE,
+                    );
+                }
+
                 println!("cargo::warning={error}\nAttempting to download a precompiled artifact instead.");
 
                 // Try to download a precompiled build artifact if one exists.
@@ -567,27 +576,21 @@ impl BuildConfiguration {
                     // that cross-compilation linkers (e.g. zig) can find it. The Bazel
                     // hermetic sysroot has a compatible libstdc++ built against glibc 2.27.
                     if self.operating_system == OperatingSystem::Linux {
-                        let output_path = PathBuf::from(
-                            env::var("OUT_DIR").with_context(|| "`OUT_DIR` not set")?,
-                        );
-                        if let Ok(output) = Command::new("bazel")
-                            .current_dir(&output_path)
-                            .arg("info")
-                            .arg("output_base")
-                            .output()
+                        let output_path = PathBuf::from(env::var("OUT_DIR").with_context(|| "`OUT_DIR` not set")?);
+                        if let Ok(output) =
+                            Command::new("bazel").current_dir(&output_path).arg("info").arg("output_base").output()
                         {
-                            let output_base =
-                                PathBuf::from(String::from_utf8_lossy(&output.stdout).trim());
+                            let output_base = PathBuf::from(String::from_utf8_lossy(&output.stdout).trim());
                             let sysroot_prefix = match self.architecture {
                                 Architecture::AArch64 => {
                                     "sysroot_linux_aarch64_glibc_2_27/usr/lib/gcc/aarch64-linux-gnu"
                                 }
-                                Architecture::X86_64 => {
-                                    "sysroot_linux_x86_64_glibc_2_17/usr/lib/gcc/x86_64-linux-gnu"
-                                }
+                                Architecture::X86_64 => "sysroot_linux_x86_64_glibc_2_17/usr/lib/gcc/x86_64-linux-gnu",
                             };
                             let external_dir = output_base.join("external");
-                            if let Ok(entries) = fs::read_dir(external_dir.join(sysroot_prefix.split('/').next().unwrap_or(""))) {
+                            if let Ok(entries) =
+                                fs::read_dir(external_dir.join(sysroot_prefix.split('/').next().unwrap_or("")))
+                            {
                                 // sysroot exists; find the gcc version directory
                                 drop(entries);
                                 let sysroot_base = external_dir.join(sysroot_prefix);
@@ -657,6 +660,12 @@ impl BuildConfiguration {
         if let Some(environment_variable) = environment_variable {
             let path = env::var(environment_variable).ok().map(PathBuf::from);
             if let Some(path) = path {
+                if !path.exists() {
+                    bail!(
+                        "the path provided for the `{artifact_name}` artifact via `{environment_variable}` does not exist: {}",
+                        path.display(),
+                    );
+                }
                 println!(
                     "cargo:warning=Using the `{artifact_name}` artifact specified \
                     in the `{environment_variable}` environment variable: {}.",

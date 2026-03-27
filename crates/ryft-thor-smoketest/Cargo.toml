@@ -1,0 +1,18 @@
+[package]
+name = "ryft-thor-smoketest"
+version = "0.0.0"
+publish = false
+
+authors.workspace = true
+edition.workspace = true
+repository.workspace = true
+categories.workspace = true
+license.workspace = true
+
+[features]
+default = []
+cuda-13 = ["ryft/cuda-13"]
+
+[dependencies]
+anyhow.workspace = true
+ryft = { workspace = true, features = ["xla"] }
