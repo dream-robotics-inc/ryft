@@ -18,25 +18,20 @@ advised to use the higher-level safe APIs provided by the `ryft-mlir` and `ryft-
 
 ## Dependencies
 
-This crate depends on a static XLA library that it is linked to at built time. This library can be built from source
-using Bazel (though that is not supported when using `cargo vendor` since it requires network access) or it can be
-provided as a precompiled archive using the `RYFT_XLA_SYS_ARCHIVE` environment variable. Note that, by default this
-crate will attempt to download a precompiled archive from GitHub releases of `ryft`, if one can be found for the target
-platform and `RYFT_XLA_SYS_ARCHIVE` is not set.
+This crate depends on a static XLA library that it is linked to at build time. It must be supplied as a precompiled
+archive, either by setting `RYFT_XLA_SYS_ARCHIVE` explicitly or by letting the build script download the matching
+release artifact from GitHub. There is no source-build fallback in `build.rs`.
 
 Furthermore, this crate has optional features for loading PJRT plugins for various kinds of accelerators, each having
 potentially different build time and runtime requirements:
 
 - **`cuda-12`:** Enables support for loading the PJRT [CUDA 12](https://docs.nvidia.com/cuda/) plugin for leveraging
-  CUDA-enabled GPUs by Nvidia. If this feature is enabled, similar to what happens with the static XLA library,
-  the corresponding PJRT plugin can be built from source using Bazel (though that is not supported when using
-  `cargo vendor` since it requires network access) or it can be provided as a precompiled archive using the
-  `PJRT_PLUGIN_CUDA_12_LIB` environment variable. Note that, by default this crate will attempt to download
-  a precompiled plugin from GitHub releases of `ryft`, if one can be found for the target platform and
-  `PJRT_PLUGIN_CUDA_12_LIB` is not set. Note that this plugin has various runtime dependencies that are not included
-  in the shared library provided by this feature, including but not limited to: `cublas`, `cudart`, `cudnn`, `cufft`,
-  `cupti`, `cusolver`, `cusparse`, `nccl`, `nvjitlink`, `nvptxcompiler`, `nvrtc`, and `nvshmem`. For Ubuntu 24.04 on
-  x86-64, you can install these dependencies using the following commands:
+  CUDA-enabled GPUs by Nvidia. If this feature is enabled, the corresponding PJRT plugin must be supplied as a
+  precompiled archive using `PJRT_PLUGIN_CUDA_12_LIB`, or the build script will attempt to download it from GitHub
+  releases of `ryft` when a matching artifact exists. Note that this plugin has various runtime dependencies that are
+  not included in the shared library provided by this feature, including but not limited to: `cublas`, `cudart`,
+  `cudnn`, `cufft`, `cupti`, `cusolver`, `cusparse`, `nccl`, `nvjitlink`, `nvptxcompiler`, `nvrtc`, and `nvshmem`.
+  For Ubuntu 24.04 on x86-64, you can install these dependencies using the following commands:
 
   ```bash
   wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2404/x86_64/cuda-keyring_1.1-1_all.deb
@@ -53,15 +48,12 @@ potentially different build time and runtime requirements:
   ```
 
 - **`cuda-13`:** Enables support for loading the PJRT [CUDA 13](https://docs.nvidia.com/cuda/) plugin for leveraging
-  CUDA-enabled GPUs by Nvidia. If this feature is enabled, similar to what happens with the static XLA library,
-  the corresponding PJRT plugin can be built from source using Bazel (though that is not supported when using
-  `cargo vendor` since it requires network access) or it can be provided as a precompiled archive using the
-  `PJRT_PLUGIN_CUDA_13_LIB` environment variable. Note that, by default this crate will attempt to download
-  a precompiled plugin from GitHub releases of `ryft`, if one can be found for the target platform and
-  `PJRT_PLUGIN_CUDA_13_LIB` is not set. Note that this plugin has various runtime dependencies that are not included
-  in the shared library provided by this feature, including but not limited to: `cublas`, `cudart`, `cudnn`, `cufft`,
-  `cupti`, `cusolver`, `cusparse`, `nccl`, `nvjitlink`, `nvptxcompiler`, `nvrtc`, and `nvshmem`. For Ubuntu 24.04 on
-  x86-64, you can install these dependencies using the following commands:
+  CUDA-enabled GPUs by Nvidia. If this feature is enabled, the corresponding PJRT plugin must be supplied as a
+  precompiled archive using `PJRT_PLUGIN_CUDA_13_LIB`, or the build script will attempt to download it from GitHub
+  releases of `ryft` when a matching artifact exists. Note that this plugin has various runtime dependencies that are
+  not included in the shared library provided by this feature, including but not limited to: `cublas`, `cudart`,
+  `cudnn`, `cufft`, `cupti`, `cusolver`, `cusparse`, `nccl`, `nvjitlink`, `nvptxcompiler`, `nvrtc`, and `nvshmem`.
+  For Ubuntu 24.04 on x86-64, you can install these dependencies using the following commands:
 
   ```bash
   wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2404/x86_64/cuda-keyring_1.1-1_all.deb
@@ -78,13 +70,10 @@ potentially different build time and runtime requirements:
   ```
 
 - **`rocm-7`:** Enables support for loading the PJRT [ROCm 7](https://rocm.docs.amd.com/) plugin for leveraging
-  ROCm-enabled GPUs by AMD. If this feature is enabled, similar to what happens with the static XLA library,
-  the corresponding PJRT plugin can be built from source using Bazel (though that is not supported when using
-  `cargo vendor` since it requires network access) or it can be provided as a precompiled archive using the
-  `PJRT_PLUGIN_ROCM_7_LIB` environment variable. Note that, by default this crate will attempt to download
-  a precompiled plugin from GitHub releases of `ryft`, if one can be found for the target platform and
-  `PJRT_PLUGIN_ROCM_7_LIB` is not set. Note that this plugin has various ROCm runtime dependencies that are not
-  included in the shared library provided by this feature. For Ubuntu, you can install these dependencies using
+  ROCm-enabled GPUs by AMD. If this feature is enabled, the corresponding PJRT plugin must be supplied as a
+  precompiled archive using `PJRT_PLUGIN_ROCM_7_LIB`, or the build script will attempt to download it from GitHub
+  releases of `ryft` when a matching artifact exists. Note that this plugin has various ROCm runtime dependencies that
+  are not included in the shared library provided by this feature. For Ubuntu, you can install these dependencies using
   the following commands:
 
   ```bash
@@ -145,14 +134,15 @@ Currently, precompiled binaries are only available for the following target plat
     - Windows `x86_64`
 - **PJRT Plugins for CUDA 12 & 13, ROCm 7, TPUs, and AWS Neuron:**
     - Linux `x86_64`
+    - Linux `aarch64` for CUDA 13
 - **PJRT Plugin for Metal (JAX Metal):**
     - MacOS `aarch64`
 
 ### Linux ARM64 (AArch64) and NixOS Compatibility
 
-Precompiled `ryft-xla-sys` artifacts are available for Linux ARM64. If no suitable precompiled archive is found,
-the crate falls back to building XLA from source via Bazel. The following changes were made to support this
-build path, particularly for NixOS hosts and `cargo-zigbuild` cross-compilation:
+Precompiled `ryft-xla-sys` artifacts are available for Linux ARM64, and they are the only supported build-time path for
+that target. For offline builds, provide the archive explicitly using `RYFT_XLA_SYS_ARCHIVE`. The published Linux
+ARM64 artifacts are produced from a dedicated Bazel configuration with the following compatibility considerations:
 
 - **Bazel config (`linux_arm64`):** The default `build:linux` Bazel config includes `-mavx` (x86-only).
   A separate `build:linux_arm64` config omits this flag and is selected automatically when the target

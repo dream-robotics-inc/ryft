@@ -6,8 +6,6 @@ use std::process::Command;
 use std::{env, fs};
 
 use anyhow::{Context, Result, anyhow, bail};
-use flate2::Compression;
-use flate2::write::GzEncoder;
 use reqwest::Url;
 use reqwest::blocking::Client;
 use sha2::{Digest, Sha256};
@@ -450,8 +448,7 @@ impl BuildConfiguration {
     ///   3. Otherwise, try to download and extract a precompiled archive and return the extracted path if successful.
     ///      Note that the downloaded archive will be extracted into a local cache directory so that it can be reused
     ///      in subsequent builds.
-    ///   4. Otherwise, try to build the artifact from source using Bazel. Note that this is not supported when using
-    ///      `cargo vendor` because it requires having access to the internet during the build process.
+    ///   4. Otherwise, return an error indicating that a precompiled artifact is required for this build.
     ///
     /// When the resolved path is a `.tar.gz` or `.whl` archive, it is extracted into the cache directory and
     /// any existing extracted directory is replaced to keep the contents up to date. For extracted
@@ -509,15 +506,11 @@ impl BuildConfiguration {
                 // Try to download a precompiled build artifact if one exists.
                 match self.download_precompiled_artifact_archive(artifact) {
                     Ok(artifact_path) => artifact_path,
-                    Err(error) => {
-                        println!("cargo::warning={error}\nAttempting to build from source instead.");
-
-                        // Try to build the artifact from source using Bazel.
-                        match self.build_artifact(artifact) {
-                            Ok(artifact_path) => artifact_path,
-                            Err(error) => bail!(error),
-                        }
-                    }
+                    Err(error) => bail!(
+                        "failed to resolve the `{}` artifact for {self}: {error}. Source builds are disabled; \
+                         provide a precompiled artifact via environment variable or publish a matching release asset.",
+                        artifact.name()
+                    ),
                 }
             }
         };
@@ -658,7 +651,10 @@ impl BuildConfiguration {
         };
 
         if let Some(environment_variable) = environment_variable {
-            let path = env::var(environment_variable).ok().map(PathBuf::from);
+            let path = env::var(environment_variable)
+                .ok()
+                .filter(|path| !path.is_empty())
+                .map(PathBuf::from);
             if let Some(path) = path {
                 if !path.exists() {
                     bail!(
@@ -712,16 +708,13 @@ impl BuildConfiguration {
         }
     }
 
-    /// Builds the requested [`Artifact`] using Bazel for this [`BuildConfiguration`] and returns a [`PathBuf`]
-    /// pointing to the built [`Artifact`] compressed into a `.tar.gz` archive.
+    /*
     fn build_artifact(&self, artifact: Artifact) -> Result<PathBuf> {
         println!("cargo::warning=Starting `{}` compilation using Bazel...", artifact.name());
 
         let current_path = env::current_dir().with_context(|| "Failed to get the current directory.")?;
         let output_path = PathBuf::from(env::var("OUT_DIR").with_context(|| "`OUT_DIR` not set")?);
 
-        // Copy the Bazel workspace files to the output directory.
-        // Also, monitor when they change to determine when a rebuild is necessary.
         let bazel_files = vec![
             PathBuf::from("bazel").join("archive.bzl"),
             PathBuf::from("bazel").join("BUILD.bazel"),
@@ -785,13 +778,10 @@ impl BuildConfiguration {
         let artifact_file_name = match &artifact {
             Artifact::RyftXlaSys => "ryft-xla-sys-archive.tar.gz".to_string(),
             Artifact::PjrtPlugin => {
-                // For PJRT plugins, we need to create a `.tar.gz` file that contains the plugin library to match the
-                // format that this function is expected to return (and in which the precompiled binaries are provided
-                // in, when downloaded from the official releases page).
                 let output_archive_name = format!("pjrt-plugin-{}.tar.gz", self.device);
                 let output_archive_path = output_path.join(&output_archive_name);
                 let output_archive = File::create(output_archive_path)?;
-                let encoder = GzEncoder::new(output_archive, Compression::default());
+                let encoder = flate2::write::GzEncoder::new(output_archive, flate2::Compression::default());
                 let mut tar = tar::Builder::new(encoder);
                 let plugin_library_file_name = match self.device {
                     Device::Cpu => format!(
@@ -821,6 +811,7 @@ impl BuildConfiguration {
 
         Ok(output_path.join("bazel-bin").join(artifact_file_name))
     }
+    */
 
     /// Returns the compiled archive file name for the provided [`Artifact`] and this [`BuildConfiguration`].
     fn precompiled_artifact_name(&self, artifact: Artifact) -> String {
@@ -846,7 +837,8 @@ impl BuildConfiguration {
             (Artifact::PjrtPlugin, _, _, Device::Metal) => {
                 "https://files.pythonhosted.org/packages/09/dc/6d8fbfc29d902251cf333414cf7dcfaf4b252a9920c881354584ed36270d"
             }
-            (Artifact::RyftXlaSys, OperatingSystem::Linux, Architecture::AArch64, Device::Cpu)
+            (Artifact::PjrtPlugin, OperatingSystem::Linux, Architecture::AArch64, Device::Cuda13)
+            | (Artifact::RyftXlaSys, OperatingSystem::Linux, Architecture::AArch64, Device::Cpu)
             | (Artifact::RyftXlaSys, OperatingSystem::MacOS, Architecture::AArch64, Device::Cpu) => {
                 "https://github.com/dream-robotics-inc/ryft/releases/download/v1.0"
             }
@@ -877,6 +869,9 @@ impl BuildConfiguration {
             }
             (Artifact::PjrtPlugin, OperatingSystem::Linux, Architecture::X86_64, Device::Cuda13) => {
                 Some("d0b3c4ef1a363cbc03dba79dd0a5c25355badbf03d58401c65ca307d296470d8")
+            }
+            (Artifact::PjrtPlugin, OperatingSystem::Linux, Architecture::AArch64, Device::Cuda13) => {
+                Some("e0b8eab330604d967070d9d9ba7c727c8c20443ddd1b4bea0b36553ce9f7a16f")
             }
             (Artifact::PjrtPlugin, OperatingSystem::Linux, Architecture::X86_64, Device::Rocm7) => {
                 Some("65d3ae590af9893e0eea77c46380e8bed9054468ea6804d90c069b10ba8acec1")
