@@ -492,15 +492,6 @@ impl BuildConfiguration {
         let artifact_path = match self.artifact_path_from_environment(artifact) {
             Ok(artifact_path) => artifact_path,
             Err(error) => {
-                if matches!(artifact, Artifact::RyftXlaSys) {
-                    bail!(
-                        "failed to locate the `{}` artifact: {error}. \
-                        Building `ryft-xla-sys` from source is disabled; provide a prebuilt archive via `{}`.",
-                        artifact.name(),
-                        RYFT_XLA_SYS_ARCHIVE,
-                    );
-                }
-
                 println!("cargo::warning={error}\nAttempting to download a precompiled artifact instead.");
 
                 // Try to download a precompiled build artifact if one exists.
