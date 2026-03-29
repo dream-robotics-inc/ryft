@@ -2,7 +2,6 @@ use std::fmt::Display;
 use std::fs::File;
 use std::io::Write;
 use std::path::{Path, PathBuf};
-use std::process::Command;
 use std::{env, fs};
 
 use anyhow::{Context, Result, anyhow, bail};
@@ -281,7 +280,7 @@ impl BuildConfiguration {
         println!("cargo::rustc-link-lib=static=ryft-xla-sys");
         match &self.operating_system {
             OperatingSystem::Linux => {
-                println!("cargo::rustc-link-lib=static=stdc++");
+                println!("cargo::rustc-link-lib=stdc++");
                 println!("cargo::rustc-link-arg=-g");
                 println!("cargo::rustc-link-search=native={}", library_directory.display());
                 println!("cargo::rustc-link-arg=-Wl,-rpath,{}", library_directory.display());
@@ -555,46 +554,6 @@ impl BuildConfiguration {
                         extracted_path.join("lib").join(new_file_name),
                     )
                     .with_context(|| "failed to rename the `ryft-xla-sys` static library")?;
-
-                    // On Linux, copy the sysroot's libstdc++.a into the lib/ directory so
-                    // that cross-compilation linkers (e.g. zig) can find it. The Bazel
-                    // hermetic sysroot has a compatible libstdc++ built against glibc 2.27.
-                    if self.operating_system == OperatingSystem::Linux {
-                        let output_path = PathBuf::from(env::var("OUT_DIR").with_context(|| "`OUT_DIR` not set")?);
-                        if let Ok(output) =
-                            Command::new("bazel").current_dir(&output_path).arg("info").arg("output_base").output()
-                        {
-                            let output_base = PathBuf::from(String::from_utf8_lossy(&output.stdout).trim());
-                            let sysroot_prefix = match self.architecture {
-                                Architecture::AArch64 => {
-                                    "sysroot_linux_aarch64_glibc_2_27/usr/lib/gcc/aarch64-linux-gnu"
-                                }
-                                Architecture::X86_64 => "sysroot_linux_x86_64_glibc_2_17/usr/lib/gcc/x86_64-linux-gnu",
-                            };
-                            let external_dir = output_base.join("external");
-                            if let Ok(entries) =
-                                fs::read_dir(external_dir.join(sysroot_prefix.split('/').next().unwrap_or("")))
-                            {
-                                // sysroot exists; find the gcc version directory
-                                drop(entries);
-                                let sysroot_base = external_dir.join(sysroot_prefix);
-                                if let Ok(gcc_entries) = fs::read_dir(&sysroot_base) {
-                                    for entry in gcc_entries.flatten() {
-                                        let libstdcpp = entry.path().join("libstdc++.a");
-                                        if libstdcpp.exists() {
-                                            let dest = extracted_path.join("lib").join("libstdc++.a");
-                                            fs::copy(&libstdcpp, &dest).ok();
-                                            println!(
-                                                "cargo::warning=Copied sysroot libstdc++.a from {}",
-                                                libstdcpp.display()
-                                            );
-                                            break;
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
                 }
                 Artifact::PjrtPlugin => {
                     let new_file = extracted_path.join(self.pjrt_plugin_library_file_name());

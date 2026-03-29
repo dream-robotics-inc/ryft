@@ -156,15 +156,8 @@ ARM64 artifacts are produced from a dedicated Bazel configuration with the follo
   as on x86_64. The `ryft-pjrt` crate uses `std::ffi::c_char` instead of `i8` for portable pointer casts.
 
 - **libstdc++ static linking for cross-compilation:** XLA is compiled against GNU `libstdc++` by Bazel's
-  hermetic GCC toolchain. When linking with `cargo-zigbuild`, zig's linker provides `libc++` but not GNU
-  `libstdc++`, causing unresolved symbol errors. To fix this:
-  1. After extracting the built archive, `build.rs` copies `libstdc++.a` from Bazel's hermetic sysroot
-     (GCC 8, glibc 2.27) into the archive's `lib/` directory.
-  2. The crate emits `cargo::rustc-link-lib=static=stdc++` (not dynamic) to force the linker to use
-     the static library from the native search path rather than zig's bundled `libc++`.
-
-  Note: using the host system's `libstdc++.a` (e.g., GCC 14 on NixOS 25.11) does not work because it
-  requires glibc 2.40+ symbols that are too new for typical cross-compilation targets.
+  hermetic GCC toolchain. On this temporary branch, Linux builds link against the host-provided dynamic
+  `libstdc++` instead of requiring a bundled static archive in the published `ryft-xla-sys` artifact.
 
 ## Contribution
 
