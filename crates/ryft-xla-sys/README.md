@@ -158,8 +158,8 @@ ARM64 artifacts are produced from a dedicated Bazel configuration with the follo
 - **libstdc++ static linking for cross-compilation:** XLA is compiled against GNU `libstdc++` by Bazel's
   hermetic GCC toolchain. When linking with `cargo-zigbuild`, zig's linker provides `libc++` but not GNU
   `libstdc++`, causing unresolved symbol errors. To fix this:
-  1. After extracting the built archive, `build.rs` copies `libstdc++.a` from Bazel's hermetic sysroot
-     (GCC 8, glibc 2.27) into the archive's `lib/` directory.
+  1. The published Linux `ryft-xla-sys` archive includes the compatible `libstdc++.a` from Bazel's hermetic
+     sysroot alongside `libryft-xla-sys.a`.
   2. The crate emits `cargo::rustc-link-lib=static=stdc++` (not dynamic) to force the linker to use
      the static library from the native search path rather than zig's bundled `libc++`.
 

@@ -188,6 +188,33 @@ filegroup(
     ],
 )
 
+genrule(
+    name = "ryft-xla-sys-libstdcpp-static-library",
+    srcs = select({
+        "@rules_ml_toolchain//common:is_linux_x86_64": [
+            "@sysroot_linux_x86_64_glibc_2_17//:stdc++",
+        ],
+        "@rules_ml_toolchain//common:is_linux_aarch64": [
+            "@sysroot_linux_aarch64_glibc_2_27//:stdc++",
+        ],
+        "//conditions:default": [],
+    }),
+    outs = ["libstdc++.a"],
+    cmd = """
+set -euo pipefail
+for file in $(SRCS); do
+    case "$$file" in
+        *.a)
+            cp "$$file" "$@"
+            exit 0
+            ;;
+    esac
+done
+echo "failed to locate libstdc++.a in $(SRCS)" >&2
+exit 1
+""",
+)
+
 proto_library(
     name = "ryft-xla-sys-protos",
     deps = [
@@ -209,7 +236,11 @@ build_archive(
         ":ryft-xla-sys-static-library",
         ":ryft-xla-sys-td-files",
         "@llvm-project//mlir:c_headers",
-    ],
+    ] + select({
+        "@rules_ml_toolchain//common:is_linux_x86_64": [":ryft-xla-sys-libstdcpp-static-library"],
+        "@rules_ml_toolchain//common:is_linux_aarch64": [":ryft-xla-sys-libstdcpp-static-library"],
+        "//conditions:default": [],
+    }),
 )
 
 cc_binary(
